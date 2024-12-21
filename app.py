@@ -62,6 +62,27 @@ def scrape_section(url, section_type):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
         
+        # Debug: Print raw HTML to Streamlit
+        st.text(f"Raw HTML content for {section_type}:")
+        st.text(soup.prettify()[:1000])  # Limit output for readability
+        
+        # Scrape Titles and Links
+        data = []
+        for item in soup.find_all("a", {"id": "video-title"}):  # Adjust selector if needed
+            title = item.text.strip()
+            link = f"https://www.youtube.com{item['href']}"
+            data.append({"title": title, "link": link})
+        
+        return data
+    except Exception as e:
+        st.error(f"Failed to scrape {section_type}: {e}")
+        return []
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        
         # Scrape Titles and Links
         data = []
         for item in soup.find_all("a", {"id": "video-title"}):  # Adjust selector if needed
