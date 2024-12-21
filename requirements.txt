@@ -1,1 +1,3 @@
-"requests\nbeautifulsoup4\nstreamlit" 
+requests
+nbeautifulsoup4
+nstreamlit
