@@ -58,6 +58,8 @@ def main():
                     if videos_response.status_code == 200:
                         videos_soup = BeautifulSoup(videos_response.text, "html.parser")
                         results["videos"] = scrape_videos(videos_soup)
+                        st.subheader("Videos Page HTML Preview")
+                        st.text(videos_response.text[:500])  # Display first 500 characters of HTML
                     else:
                         st.error(f"Failed to fetch videos page. Status code: {videos_response.status_code}")
 
@@ -67,6 +69,8 @@ def main():
                     if shorts_response.status_code == 200:
                         shorts_soup = BeautifulSoup(shorts_response.text, "html.parser")
                         results["shorts"] = scrape_shorts(shorts_soup)
+                        st.subheader("Shorts Page HTML Preview")
+                        st.text(shorts_response.text[:500])  # Display first 500 characters of HTML
                     else:
                         st.error(f"Failed to fetch shorts page. Status code: {shorts_response.status_code}")
 
@@ -76,6 +80,8 @@ def main():
                     if community_response.status_code == 200:
                         community_soup = BeautifulSoup(community_response.text, "html.parser")
                         results["community"] = scrape_community(community_soup)
+                        st.subheader("Community Page HTML Preview")
+                        st.text(community_response.text[:500])  # Display first 500 characters of HTML
                     else:
                         st.error(f"Failed to fetch community page. Status code: {community_response.status_code}")
 
