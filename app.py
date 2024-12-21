@@ -1,9 +1,6 @@
 import streamlit as st
-from playwright.sync_api import sync_playwright
-import os
-
-# Install Playwright browsers if not already installed
-os.system("playwright install")
+import requests
+from bs4 import BeautifulSoup
 
 # App title
 st.title("YouTube Compendium Generator")
@@ -17,59 +14,75 @@ include_videos = st.checkbox("Videos", value=True)
 include_shorts = st.checkbox("Shorts", value=True)
 include_community = st.checkbox("Community", value=True)
 
-# Logic to ensure videos are always selected
-if not include_videos:
-    st.warning("Videos must be selected. Please enable 'Videos' to proceed.")
-    include_shorts = False
-    include_community = False
+# Headers to mimic a browser request
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
 
-# Function to scrape YouTube content using Playwright
+# Scrape YouTube content
 def scrape_youtube_data(channel_url, include_videos, include_shorts, include_community):
-    scraped_data = {
-        "videos": [],
-        "shorts": [],
-        "community": []
-    }
+    scraped_data = {"videos": [], "shorts": [], "community": []}
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+    # Scrape Videos
+    if include_videos:
+        st.info("Scraping videos...")
+        video_data = scrape_section(f"{channel_url}/videos", "videos")
+        scraped_data["videos"] = video_data
 
-        # Scrape Videos
-        if include_videos:
-            st.info("Scraping videos...")
-            page.goto(f"{channel_url}/videos")
-            video_elements = page.query_selector_all('a#video-title')
-            scraped_data["videos"] = [
-                {"title": video.inner_text(), "link": f"https://www.youtube.com{video.get_attribute('href')}"}
-                for video in video_elements
-            ]
+    # Scrape Shorts
+    if include_shorts:
+        st.info("Scraping shorts...")
+        shorts_data = scrape_section(f"{channel_url}/shorts", "shorts")
+        scraped_data["shorts"] = shorts_data
 
-        # Scrape Shorts
-        if include_shorts:
-            st.info("Scraping shorts...")
-            page.goto(f"{channel_url}/shorts")
-            shorts_elements = page.query_selector_all('a#video-title')
-            scraped_data["shorts"] = [
-                {"title": short.inner_text(), "link": f"https://www.youtube.com{short.get_attribute('href')}"}
-                for short in shorts_elements
-            ]
-
-        # Scrape Community Posts
-        if include_community:
-            st.info("Scraping community posts...")
-            page.goto(f"{channel_url}/community")
-            community_elements = page.query_selector_all(
-                'yt-formatted-string[class*="style-scope ytd-backstage-post-renderer"]'
-            )
-            scraped_data["community"] = [
-                {"content": post.inner_text()}
-                for post in community_elements
-            ]
-
-        browser.close()
+    # Scrape Community Posts
+    if include_community:
+        st.info("Scraping community posts...")
+        community_data = scrape_community(f"{channel_url}/community")
+        scraped_data["community"] = community_data
 
     return scraped_data
+
+
+# Scrape a section (videos or shorts)
+def scrape_section(url, section_type):
+    try:
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Extract titles and links
+        data = []
+        for item in soup.find_all("a", {"id": "video-title"}):
+            title = item.text.strip()
+            link = f"https://www.youtube.com{item['href']}"
+            data.append({"title": title, "link": link})
+
+        return data
+    except Exception as e:
+        st.error(f"Failed to scrape {section_type}: {e}")
+        return []
+
+
+# Scrape community posts
+def scrape_community(url):
+    try:
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Extract text posts
+        data = []
+        for item in soup.find_all("yt-formatted-string", {"class": "style-scope ytd-backstage-post-renderer"}):
+            text = item.text.strip()
+            if text:
+                data.append({"content": text})
+
+        return data
+    except Exception as e:
+        st.error(f"Failed to scrape community posts: {e}")
+        return []
+
 
 # Button to start scraping
 if st.button("Start Processing"):
