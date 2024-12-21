@@ -1,6 +1,8 @@
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 # App title
 st.title("YouTube Compendium Generator")
@@ -55,65 +57,54 @@ def scrape_youtube_data(channel_url, include_videos, include_shorts, include_com
 
     return scraped_data
 
+# Configure Selenium WebDriver
+def init_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode for Streamlit
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    service = Service("/usr/bin/chromedriver")  # Path to ChromeDriver (adjust if necessary)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    return driver
 
+# Scrape videos and shorts
 def scrape_section(url, section_type):
+    driver = init_driver()
+    driver.get(url)
+    
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Debug: Print raw HTML to Streamlit
-        st.text(f"Raw HTML content for {section_type}:")
-        st.text(soup.prettify()[:1000])  # Limit output for readability
-        
-        # Scrape Titles and Links
         data = []
-        for item in soup.find_all("a", {"id": "video-title"}):  # Adjust selector if needed
-            title = item.text.strip()
-            link = f"https://www.youtube.com{item['href']}"
-            data.append({"title": title, "link": link})
-        
+        video_elements = driver.find_elements(By.ID, "video-title")
+        for video in video_elements:
+            title = video.text.strip()
+            link = video.get_attribute("href")
+            if title and link:
+                data.append({"title": title, "link": link})
         return data
     except Exception as e:
         st.error(f"Failed to scrape {section_type}: {e}")
         return []
+    finally:
+        driver.quit()
 
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Scrape Titles and Links
-        data = []
-        for item in soup.find_all("a", {"id": "video-title"}):  # Adjust selector if needed
-            title = item.text.strip()
-            link = f"https://www.youtube.com{item['href']}"
-            data.append({"title": title, "link": link})
-        
-        return data
-    except Exception as e:
-        st.error(f"Failed to scrape {section_type}: {e}")
-        return []
-
-
+# Scrape community posts
 def scrape_community(url):
+    driver = init_driver()
+    driver.get(url)
+    
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Scrape Community Text Posts
         data = []
-        for item in soup.find_all("yt-formatted-string", {"class": "style-scope ytd-backstage-post-renderer"}):
-            text = item.text.strip()
+        post_elements = driver.find_elements(By.CLASS_NAME, "style-scope ytd-backstage-post-renderer")
+        for post in post_elements:
+            text = post.text.strip()
             if text:
                 data.append({"content": text})
-        
         return data
     except Exception as e:
         st.error(f"Failed to scrape community posts: {e}")
         return []
-
+    finally:
+        driver.quit()
 
 # Button to start scraping
 if st.button("Start Processing"):
