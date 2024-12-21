@@ -7,20 +7,22 @@ from bs4 import BeautifulSoup
 import time
 
 # Configure Selenium WebDriver
-CHROME_DRIVER_PATH = "/usr/bin/chromedriver"  # Ensure chromedriver is installed and accessible
+CHROME_DRIVER_PATH = "/usr/bin/chromedriver"
+CHROME_BINARY_PATH = "/usr/bin/chromium-browser"
 
 def get_rendered_html(url):
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    service = Service(CHROME_DRIVER_PATH)
+    options.binary_location = CHROME_BINARY_PATH
 
+    service = Service(CHROME_DRIVER_PATH)
     with webdriver.Chrome(service=service, options=options) as driver:
         driver.get(url)
-        time.sleep(5)  # Allow time for JavaScript to load
+        driver.implicitly_wait(5)  # Allow time for JavaScript to load
         return driver.page_source
-
+        
 # Function to scrape YouTube videos
 def scrape_videos(soup):
     videos = []
