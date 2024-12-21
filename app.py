@@ -1,15 +1,15 @@
 import streamlit as st
-from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium import webdriver
 from bs4 import BeautifulSoup
 import time
 
-# Configure Selenium WebDriver
+# Define paths for Chromium and ChromeDriver
 CHROME_DRIVER_PATH = "/usr/bin/chromedriver"
 CHROME_BINARY_PATH = "/usr/bin/chromium-browser"
 
+# Function to get fully rendered HTML using Selenium
 def get_rendered_html(url):
     options = Options()
     options.add_argument("--headless")
@@ -20,9 +20,9 @@ def get_rendered_html(url):
     service = Service(CHROME_DRIVER_PATH)
     with webdriver.Chrome(service=service, options=options) as driver:
         driver.get(url)
-        driver.implicitly_wait(5)  # Allow time for JavaScript to load
+        time.sleep(5)  # Allow time for JavaScript to load
         return driver.page_source
-        
+
 # Function to scrape YouTube videos
 def scrape_videos(soup):
     videos = []
