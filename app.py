@@ -1,29 +1,17 @@
 import streamlit as st
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium import webdriver
 from bs4 import BeautifulSoup
-import time
+from playwright.sync_api import sync_playwright
 
-# Define paths for Chromium and ChromeDriver
-CHROME_DRIVER_PATH = "/usr/bin/chromedriver"
-CHROME_BINARY_PATH = "/usr/bin/chromium-browser"
+def scrape_page(url):
+    """Scrape fully rendered HTML using Playwright."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url)
+        html_content = page.content()
+        browser.close()
+    return html_content
 
-# Function to get fully rendered HTML using Selenium
-def get_rendered_html(url):
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.binary_location = CHROME_BINARY_PATH
-
-    service = Service(CHROME_DRIVER_PATH)
-    with webdriver.Chrome(service=service, options=options) as driver:
-        driver.get(url)
-        time.sleep(5)  # Allow time for JavaScript to load
-        return driver.page_source
-
-# Function to scrape YouTube videos
 def scrape_videos(soup):
     videos = []
     for video in soup.select("a#video-title"):
@@ -32,7 +20,6 @@ def scrape_videos(soup):
         videos.append({"title": title, "link": link})
     return videos
 
-# Function to scrape YouTube shorts
 def scrape_shorts(soup):
     shorts = []
     for short in soup.select("a#video-title"):
@@ -41,7 +28,6 @@ def scrape_shorts(soup):
         shorts.append({"title": title, "link": link})
     return shorts
 
-# Function to scrape YouTube community posts
 def scrape_community(soup):
     community_posts = []
     for post in soup.select("yt-formatted-string#content-text"):
@@ -49,14 +35,10 @@ def scrape_community(soup):
         community_posts.append(content)
     return community_posts
 
-# Main Streamlit app
 def main():
     st.title("YouTube Content Scraper")
 
-    # Input YouTube channel URL
     channel_url = st.text_input("Enter the YouTube channel URL:", "https://www.youtube.com/@example")
-
-    # Checkboxes for sections
     scrape_videos_section = st.checkbox("Scrape Videos", value=True)
     scrape_shorts_section = st.checkbox("Scrape Shorts", value=True)
     scrape_community_section = st.checkbox("Scrape Community Posts", value=True)
@@ -66,25 +48,21 @@ def main():
             try:
                 results = {}
 
-                # Scrape Videos
                 if scrape_videos_section:
-                    videos_html = get_rendered_html(f"{channel_url}/videos")
+                    videos_html = scrape_page(f"{channel_url}/videos")
                     videos_soup = BeautifulSoup(videos_html, "html.parser")
                     results["videos"] = scrape_videos(videos_soup)
 
-                # Scrape Shorts
                 if scrape_shorts_section:
-                    shorts_html = get_rendered_html(f"{channel_url}/shorts")
+                    shorts_html = scrape_page(f"{channel_url}/shorts")
                     shorts_soup = BeautifulSoup(shorts_html, "html.parser")
                     results["shorts"] = scrape_shorts(shorts_soup)
 
-                # Scrape Community Posts
                 if scrape_community_section:
-                    community_html = get_rendered_html(f"{channel_url}/community")
+                    community_html = scrape_page(f"{channel_url}/community")
                     community_soup = BeautifulSoup(community_html, "html.parser")
                     results["community"] = scrape_community(community_soup)
 
-                # Display Results
                 if results.get("videos"):
                     st.subheader("Videos")
                     for video in results["videos"]:
