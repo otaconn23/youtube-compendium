@@ -1,51 +1,51 @@
 import streamlit as st
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 
-# Function to scrape video data from the uploaded or fetched videos page
-def scrape_videos_page(html_content):
-    soup = BeautifulSoup(html_content, 'html.parser')
+# Define headers with a User-Agent to mimic a browser
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+BASE_URL = "https://www.youtube.com"
+
+# Function to scrape YouTube videos
+def scrape_videos(soup):
     videos = []
-
-    # Find all video elements by their HTML structure (adjust selectors if needed)
-    for video_tag in soup.find_all('a', {'id': 'video-title'}):
-        title = video_tag.text.strip()
-        link = f"https://www.youtube.com{video_tag['href']}"
-        videos.append({'title': title, 'link': link})
-
+    for video in soup.select("a#video-title"):
+        title = video.text.strip()
+        link = f"{BASE_URL}{video['href']}"
+        videos.append({"title": title, "link": link})
     return videos
 
-# Streamlit UI
-st.title("YouTube Channel Scraper")
+# Main Streamlit app
+def main():
+    st.title("YouTube Video Scraper")
 
-# Input for URL
-url = st.text_input("Enter YouTube Channel URL:")
-uploaded_file = st.file_uploader("Or upload the videos HTML file:", type="html")
+    # Input YouTube channel URL
+    channel_url = st.text_input("Enter the YouTube channel URL:", "https://www.youtube.com/@example")
 
-if st.button("Scrape Videos"):
-    if uploaded_file:
-        # Use uploaded HTML file
-        html_content = uploaded_file.read()
-        st.info("Scraping uploaded file...")
-        videos = scrape_videos_page(html_content)
-    elif url:
-        try:
-            st.info("Fetching page from URL...")
-            response = requests.get(url)
-            response.raise_for_status()
-            html_content = response.text
-            videos = scrape_videos_page(html_content)
-        except Exception as e:
-            st.error(f"Failed to fetch the page: {e}")
-            videos = []
-    else:
-        st.error("Please provide a URL or upload a file.")
-        videos = []
+    if st.button("Scrape Videos"):
+        with st.spinner("Scraping videos..."):
+            try:
+                # Scrape Videos
+                videos_response = requests.get(f"{channel_url}/videos", headers=HEADERS)
+                if videos_response.status_code == 200:
+                    videos_soup = BeautifulSoup(videos_response.text, "html.parser")
+                    videos = scrape_videos(videos_soup)
 
-    # Display results
-    if videos:
-        st.success(f"Found {len(videos)} videos!")
-        for video in videos:
-            st.write(f"[{video['title']}]({video['link']})")
-    else:
-        st.warning("No videos found. Ensure the page structure is correct.")
+                    # Display videos
+                    if videos:
+                        st.success("Videos scraped successfully!")
+                        for video in videos:
+                            st.write(f"- [{video['title']}]({video['link']})")
+                    else:
+                        st.warning("No videos found.")
+                else:
+                    st.error(f"Failed to fetch videos page. Status code: {videos_response.status_code}")
+
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
