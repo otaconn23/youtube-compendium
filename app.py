@@ -1,20 +1,32 @@
 import streamlit as st
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
+import time
 
-# Define headers with a User-Agent to mimic a browser
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}
+# Configure Selenium WebDriver
+CHROME_DRIVER_PATH = "/usr/bin/chromedriver"  # Ensure chromedriver is installed and accessible
 
-BASE_URL = "https://www.youtube.com"
+def get_rendered_html(url):
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    service = Service(CHROME_DRIVER_PATH)
+
+    with webdriver.Chrome(service=service, options=options) as driver:
+        driver.get(url)
+        time.sleep(5)  # Allow time for JavaScript to load
+        return driver.page_source
 
 # Function to scrape YouTube videos
 def scrape_videos(soup):
     videos = []
     for video in soup.select("a#video-title"):
         title = video.text.strip()
-        link = f"{BASE_URL}{video['href']}"
+        link = f"https://www.youtube.com{video['href']}"
         videos.append({"title": title, "link": link})
     return videos
 
@@ -23,7 +35,7 @@ def scrape_shorts(soup):
     shorts = []
     for short in soup.select("a#video-title"):
         title = short.text.strip()
-        link = f"{BASE_URL}{short['href']}"
+        link = f"https://www.youtube.com{short['href']}"
         shorts.append({"title": title, "link": link})
     return shorts
 
@@ -54,36 +66,21 @@ def main():
 
                 # Scrape Videos
                 if scrape_videos_section:
-                    videos_response = requests.get(f"{channel_url}/videos", headers=HEADERS)
-                    if videos_response.status_code == 200:
-                        videos_soup = BeautifulSoup(videos_response.text, "html.parser")
-                        results["videos"] = scrape_videos(videos_soup)
-                        st.subheader("Videos Page HTML Preview")
-                        st.text(videos_response.text[:500])  # Display first 500 characters of HTML
-                    else:
-                        st.error(f"Failed to fetch videos page. Status code: {videos_response.status_code}")
+                    videos_html = get_rendered_html(f"{channel_url}/videos")
+                    videos_soup = BeautifulSoup(videos_html, "html.parser")
+                    results["videos"] = scrape_videos(videos_soup)
 
                 # Scrape Shorts
                 if scrape_shorts_section:
-                    shorts_response = requests.get(f"{channel_url}/shorts", headers=HEADERS)
-                    if shorts_response.status_code == 200:
-                        shorts_soup = BeautifulSoup(shorts_response.text, "html.parser")
-                        results["shorts"] = scrape_shorts(shorts_soup)
-                        st.subheader("Shorts Page HTML Preview")
-                        st.text(shorts_response.text[:500])  # Display first 500 characters of HTML
-                    else:
-                        st.error(f"Failed to fetch shorts page. Status code: {shorts_response.status_code}")
+                    shorts_html = get_rendered_html(f"{channel_url}/shorts")
+                    shorts_soup = BeautifulSoup(shorts_html, "html.parser")
+                    results["shorts"] = scrape_shorts(shorts_soup)
 
                 # Scrape Community Posts
                 if scrape_community_section:
-                    community_response = requests.get(f"{channel_url}/community", headers=HEADERS)
-                    if community_response.status_code == 200:
-                        community_soup = BeautifulSoup(community_response.text, "html.parser")
-                        results["community"] = scrape_community(community_soup)
-                        st.subheader("Community Page HTML Preview")
-                        st.text(community_response.text[:500])  # Display first 500 characters of HTML
-                    else:
-                        st.error(f"Failed to fetch community page. Status code: {community_response.status_code}")
+                    community_html = get_rendered_html(f"{channel_url}/community")
+                    community_soup = BeautifulSoup(community_html, "html.parser")
+                    results["community"] = scrape_community(community_soup)
 
                 # Display Results
                 if results.get("videos"):
